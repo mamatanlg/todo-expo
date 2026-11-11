@@ -15,8 +15,8 @@ export default function EditTodoScreen() {
     <TodoForm
       initial={todo}
       submitLabel="Save changes"
-      onSubmit={(input) => {
-        updateTodo(todo.id, input);
+      onSubmit={async (input) => {
+        await updateTodo(todo.id, input);
         router.back();
       }}
     />

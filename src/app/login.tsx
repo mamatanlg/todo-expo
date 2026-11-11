@@ -1,3 +1,4 @@
+import { Link } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -9,17 +10,47 @@ import {
   View,
 } from 'react-native';
 
-import { DEMO_PASSWORD, DEMO_USERNAME, useAuth } from '@/auth';
+import { supabase } from '../../utils/supabase';
 
 export default function LoginScreen() {
-  const { signIn } = useAuth();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // On success the protected-route guard flips and navigates to the todo list.
-  const submit = () => {
-    if (!signIn(username, password)) setError('Invalid username or password');
+  const submit = async () => {
+    if (isSubmitting) return;
+    if (!email.trim() || !password) {
+      setError('Enter your email address and password.');
+      return;
+    }
+
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (signInError) {
+        const message = signInError.message.toLowerCase();
+        if (message.includes('email not confirmed')) {
+          setError('Please confirm your email address before signing in.');
+        } else if (message.includes('invalid login credentials')) {
+          setError('Invalid email address or password.');
+        } else {
+          setError(signInError.message);
+        }
+      }
+    } catch (signInError: unknown) {
+      setError(
+        signInError instanceof Error ? signInError.message : 'Unable to sign in. Please try again.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -32,16 +63,17 @@ export default function LoginScreen() {
         <Text style={styles.subtitle}>Sign in to continue</Text>
 
         <TextInput
-          value={username}
+          value={email}
           onChangeText={(v) => {
-            setUsername(v);
+            setEmail(v);
             setError(null);
           }}
-          placeholder="Username"
+          placeholder="Email address"
+          keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
           style={styles.input}
-          testID="username"
+          testID="email"
         />
         <TextInput
           value={password}
@@ -51,20 +83,28 @@ export default function LoginScreen() {
           }}
           placeholder="Password"
           secureTextEntry
-          onSubmitEditing={submit}
+          onSubmitEditing={() => void submit()}
           style={styles.input}
           testID="password"
         />
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <Pressable accessibilityRole="button" onPress={submit} style={styles.button}>
-          <Text style={styles.buttonText}>Sign in</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void submit()}
+          disabled={isSubmitting}
+          style={[styles.button, isSubmitting && styles.buttonDisabled]}
+        >
+          <Text style={styles.buttonText}>{isSubmitting ? 'Signing in...' : 'Sign in'}</Text>
         </Pressable>
 
-        <Text style={styles.hint}>
-          Demo: {DEMO_USERNAME} / {DEMO_PASSWORD}
-        </Text>
+        <View style={styles.signupPrompt}>
+          <Text style={styles.hint}>New here? </Text>
+          <Link href="/signup" style={styles.signupLink}>
+            Create an account
+          </Link>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -98,6 +138,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
+  buttonDisabled: { opacity: 0.65 },
   buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  hint: { color: '#94a3b8', fontSize: 12, textAlign: 'center', marginTop: 4 },
+  signupPrompt: { flexDirection: 'row', justifyContent: 'center', marginTop: 4 },
+  hint: { color: '#64748b', fontSize: 14 },
+  signupLink: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
 });

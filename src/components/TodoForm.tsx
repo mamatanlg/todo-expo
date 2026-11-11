@@ -7,15 +7,34 @@ import type { TodoInput } from '@/todos';
 type Props = {
   initial?: TodoInput;
   submitLabel: string;
-  onSubmit: (input: TodoInput) => void;
+  onSubmit: (input: TodoInput) => Promise<void>;
 };
 
 export function TodoForm({ initial, submitLabel, onSubmit }: Props) {
   const [title, setTitle] = useState(initial?.title ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [status, setStatus] = useState(initial?.status ?? 'todo');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const canSubmit = title.trim().length > 0;
+  const submit = async () => {
+    if (!canSubmit || isSubmitting) return;
+
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await onSubmit({ title: title.trim(), description: description.trim(), status });
+    } catch (submitError: unknown) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : 'Unable to save this todo. Please try again.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
@@ -42,12 +61,15 @@ export function TodoForm({ initial, submitLabel, onSubmit }: Props) {
 
       <Pressable
         accessibilityRole="button"
-        disabled={!canSubmit}
-        onPress={() => onSubmit({ title: title.trim(), description: description.trim(), status })}
-        style={[styles.button, !canSubmit && styles.buttonDisabled]}
+        disabled={!canSubmit || isSubmitting}
+        onPress={() => void submit()}
+        style={[styles.button, (!canSubmit || isSubmitting) && styles.buttonDisabled]}
       >
-        <Text style={styles.buttonText}>{submitLabel}</Text>
+        <Text style={styles.buttonText}>
+          {isSubmitting ? 'Saving...' : submitLabel}
+        </Text>
       </Pressable>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
     </ScrollView>
   );
 }
@@ -73,4 +95,5 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.5 },
   buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  error: { color: '#dc2626', marginTop: 8 },
 });

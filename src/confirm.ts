@@ -11,3 +11,12 @@ export function confirmDestructive(title: string, message: string, onConfirm: ()
     { text: 'Delete', style: 'destructive', onPress: onConfirm },
   ]);
 }
+
+export function showOperationError(title: string, error: unknown) {
+  const message = error instanceof Error ? error.message : 'Please try again.';
+  if (Platform.OS === 'web') {
+    window.alert(`${title}\n\n${message}`);
+    return;
+  }
+  Alert.alert(title, message);
+}

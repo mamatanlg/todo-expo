@@ -2,7 +2,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { StatusBadge, StatusPicker } from '@/components/status';
-import { confirmDestructive } from '@/confirm';
+import { confirmDestructive, showOperationError } from '@/confirm';
 import { useTodos } from '@/todos';
 
 export default function TodoDetailScreen() {
@@ -23,16 +23,24 @@ export default function TodoDetailScreen() {
           {todo.description || 'No description'}
         </Text>
         <Text style={styles.meta}>Created {new Date(todo.createdAt).toLocaleString()}</Text>
-        <Text style={styles.meta}>Updated {new Date(todo.updatedAt).toLocaleString()}</Text>
       </View>
 
       <Text style={styles.label}>Status</Text>
-      <StatusPicker value={todo.status} onChange={(status) => updateTodo(todo.id, { status })} />
+      <StatusPicker
+        value={todo.status}
+        onChange={(status) => {
+          void updateTodo(todo.id, { status }).catch((error: unknown) =>
+            showOperationError('Unable to update todo', error),
+          );
+        }}
+      />
 
       <View style={styles.actions}>
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push({ pathname: '/todo/[id]/edit', params: { id: todo.id } })}
+          onPress={() =>
+            router.push({ pathname: '/todo/[id]/edit', params: { id: String(todo.id) } })
+          }
           style={[styles.button, styles.edit]}
         >
           <Text style={styles.buttonText}>Edit</Text>
@@ -41,8 +49,11 @@ export default function TodoDetailScreen() {
           accessibilityRole="button"
           onPress={() =>
             confirmDestructive('Delete todo?', todo.title, () => {
-              deleteTodo(todo.id);
-              router.back();
+              void deleteTodo(todo.id)
+                .then(() => router.back())
+                .catch((error: unknown) =>
+                  showOperationError('Unable to delete todo', error),
+                );
             })
           }
           style={[styles.button, styles.delete]}

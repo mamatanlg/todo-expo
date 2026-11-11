@@ -9,8 +9,8 @@ export default function NewTodoScreen() {
   return (
     <TodoForm
       submitLabel="Create todo"
-      onSubmit={(input) => {
-        createTodo(input);
+      onSubmit={async (input) => {
+        await createTodo(input);
         router.back();
       }}
     />
